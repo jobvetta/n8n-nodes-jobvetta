@@ -31,8 +31,8 @@ npm install n8n-nodes-jobvetta
 | **Search Jobs** | `GET /v1/jobs` | Filter 6.5M+ live employer jobs by keyword, ISO-2 country, city/state, company name, remote flag, and freshness (`1..30` days) |
 | **Search Remote Jobs** | `GET /v1/jobs/remote` | Fetch verified remote-eligible roles worldwide or per country |
 | **Get Recent Jobs (24h)** | `GET /v1/jobs/recent` | Stream openings posted in the last 24 hours into Slack, Discord, Telegram, HubSpot, or Clay |
-| **Get Company Hiring Signals** | `GET /v1/companies/hiring` | B2B outbound intent — rank employers actively hiring for specific roles or tech stacks (e.g. `Kubernetes`, `Account Executive`, `SOC 2`) |
-| **Estimate Salary** | `GET /v1/salaries/estimate` | Retrieve `p25`, `median`, `mean`, and `p75` salary benchmarks for any role + country/city |
+| **Get Company Jobs** | `GET /v1/companies/{company}/jobs` | B2B outbound intent — list active openings at a specific target employer (e.g. `Stripe`, `Cisco Systems`, `Databricks`) |
+| **Estimate Salary** | `GET /v1/jobs/salary-estimate` | Retrieve annualized `salary_p25`, `salary_median`, and `salary_p75` compensation benchmarks for any role + location |
 | **Get Job Details** | `GET /v1/jobs/:id` | Retrieve the full job description and direct employer career-page application link |
 
 ## Credentials
@@ -44,8 +44,8 @@ Supports both authentication gateways out of the box:
 
 ## Example Automations
 
-- **B2B Outbound Hiring-Intent Trigger**: Schedule trigger (daily 8 AM) → **Jobvetta (`Get Company Hiring Signals`, query: `Security Engineer`, country: `US`)** → Enrich domain → Create lead in HubSpot / Clay / Apollo.
-- **Slack / Discord Daily Job Digest**: Schedule trigger → **Jobvetta (`Get Recent Jobs (24h)`, query: `AI Engineer`, country: `US`)** → Post formatted cards to Slack.
+- **B2B Outbound Hiring-Intent Trigger**: Schedule trigger (daily 8 AM) → **Jobvetta (`Get Company Jobs`, company: `Databricks`, query: `Security Engineer`)** → Enrich domain → Create lead in HubSpot / Clay / Apollo.
+- **Slack / Discord Daily Job Digest**: Schedule trigger → **Jobvetta (`Get Recent Jobs (24h)`, query: `AI Engineer`, location: `United States`)** → Post formatted cards to Slack.
 - **AI Recruiting & Career Copilot**: Connect **Jobvetta** directly to an **n8n AI Agent** node (`Tools` port) alongside OpenAI / Anthropic.
 
 ## License

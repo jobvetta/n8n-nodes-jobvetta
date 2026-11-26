@@ -16,7 +16,7 @@ export class Jobvetta implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Search 6.5M+ live employer career-site jobs, remote roles, company hiring signals, and salary benchmarks across 242 countries',
+		description: 'Search 6.5M+ live employer career-site jobs, remote roles, company openings, and salary benchmarks across 242 countries',
 		defaults: {
 			name: 'Jobvetta',
 		},
@@ -45,7 +45,7 @@ export class Jobvetta implements INodeType {
 					{
 						name: 'Search Remote Jobs',
 						value: 'searchRemoteJobs',
-						description: 'Search verified remote-eligible employer roles',
+						description: 'Search verified remote-eligible employer roles worldwide',
 						action: 'Search verified remote jobs',
 					},
 					{
@@ -55,21 +55,21 @@ export class Jobvetta implements INodeType {
 						action: 'Get jobs posted in last 24 hours',
 					},
 					{
-						name: 'Get Company Hiring Signals',
-						value: 'getCompanySignals',
-						description: 'Discover actively hiring employers ranked by live open-role velocity',
-						action: 'Get company hiring signals',
+						name: 'Get Company Jobs',
+						value: 'getCompanyJobs',
+						description: 'List active openings at a specific employer (/v1/companies/{company}/jobs)',
+						action: 'List active jobs at a company',
 					},
 					{
 						name: 'Estimate Salary',
 						value: 'estimateSalary',
-						description: 'Compute p25, median, mean, and p75 compensation benchmarks for a role',
+						description: 'Compute annualized p25, median, and p75 compensation benchmarks (/v1/jobs/salary-estimate)',
 						action: 'Estimate role salary benchmarks',
 					},
 					{
 						name: 'Get Job Details',
 						value: 'getJobDetails',
-						description: 'Retrieve the full description and direct employer application link for a job ID',
+						description: 'Retrieve the full description and employer metadata for a job ID (/v1/jobs/{id})',
 						action: 'Get full job details by ID',
 					},
 				],
@@ -89,6 +89,20 @@ export class Jobvetta implements INodeType {
 				description: 'Unique Jobvetta job identifier returned by Search Jobs',
 			},
 			{
+				displayName: 'Company Name',
+				name: 'company',
+				type: 'string',
+				required: true,
+				default: '',
+				placeholder: 'e.g. Stripe, Cisco Systems, Databricks',
+				displayOptions: {
+					show: {
+						operation: ['getCompanyJobs'],
+					},
+				},
+				description: 'Employer name to look up active openings for',
+			},
+			{
 				displayName: 'Query / Keyword',
 				name: 'q',
 				type: 'string',
@@ -100,57 +114,44 @@ export class Jobvetta implements INodeType {
 							'searchJobs',
 							'searchRemoteJobs',
 							'getRecentJobs',
-							'getCompanySignals',
+							'getCompanyJobs',
 							'estimateSalary',
 						],
 					},
 				},
-				description: 'Role title, skill, technology, or department keyword (required for Estimate Salary)',
+				description: 'Role title, skill, technology, or department keyword',
 			},
 			{
-				displayName: 'Country (ISO-2)',
-				name: 'country',
+				displayName: 'Location (Country, State, or City)',
+				name: 'location',
 				type: 'string',
 				default: '',
-				placeholder: 'e.g. US, GB, CA, DE, IN, AU',
+				placeholder: 'e.g. United States, New York, London, Germany, Bengaluru',
 				displayOptions: {
 					show: {
 						operation: [
 							'searchJobs',
 							'searchRemoteJobs',
 							'getRecentJobs',
-							'getCompanySignals',
+							'getCompanyJobs',
 							'estimateSalary',
 						],
 					},
 				},
-				description: 'Optional 2-letter ISO country code filter across 242 supported countries',
+				description: 'Country name, state/province, or city filter across 242 countries',
 			},
 			{
-				displayName: 'Location (City / State)',
-				name: 'location',
+				displayName: 'Company Filter',
+				name: 'companyQuery',
 				type: 'string',
 				default: '',
-				placeholder: 'e.g. San Francisco, New York, London, Bengaluru',
+				placeholder: 'e.g. Stripe, Cloudflare',
 				displayOptions: {
 					show: {
-						operation: ['searchJobs', 'estimateSalary'],
+						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs'],
 					},
 				},
-				description: 'City, state, or metro filter',
-			},
-			{
-				displayName: 'Company Name',
-				name: 'company',
-				type: 'string',
-				default: '',
-				placeholder: 'e.g. Stripe, Databricks, Anthropic',
-				displayOptions: {
-					show: {
-						operation: ['searchJobs'],
-					},
-				},
-				description: 'Filter jobs to a specific employer name',
+				description: 'Optional employer name filter (company_query)',
 			},
 			{
 				displayName: 'Remote Only',
@@ -159,7 +160,7 @@ export class Jobvetta implements INodeType {
 				default: false,
 				displayOptions: {
 					show: {
-						operation: ['searchJobs'],
+						operation: ['searchJobs', 'getCompanyJobs'],
 					},
 				},
 				description: 'Whether to restrict results to remote-eligible openings only',
@@ -170,15 +171,15 @@ export class Jobvetta implements INodeType {
 				type: 'number',
 				typeOptions: {
 					minValue: 1,
-					maxValue: 30,
+					maxValue: 365,
 				},
 				default: 7,
 				displayOptions: {
 					show: {
-						operation: ['searchJobs', 'searchRemoteJobs', 'getCompanySignals'],
+						operation: ['searchJobs', 'searchRemoteJobs', 'getCompanyJobs', 'estimateSalary'],
 					},
 				},
-				description: 'Freshness window in days (1 to 30)',
+				description: 'Freshness window in days (1 to 30 for search, up to 365 for salary estimates)',
 			},
 			{
 				displayName: 'Limit',
@@ -191,10 +192,10 @@ export class Jobvetta implements INodeType {
 				default: 25,
 				displayOptions: {
 					show: {
-						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs', 'getCompanySignals'],
+						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs', 'getCompanyJobs'],
 					},
 				},
-				description: 'Max number of results to return per request (1 to 100)',
+				description: 'Max number of jobs to return per request (1 to 25 on Free, up to 100 on Growth+)',
 			},
 			{
 				displayName: 'Offset',
@@ -202,26 +203,27 @@ export class Jobvetta implements INodeType {
 				type: 'number',
 				typeOptions: {
 					minValue: 0,
+					maxValue: 9999,
 				},
 				default: 0,
 				displayOptions: {
 					show: {
-						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs'],
+						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs', 'getCompanyJobs'],
 					},
 				},
 				description: 'Pagination offset',
 			},
 			{
-				displayName: 'Split Results Into Items',
+				displayName: 'Split Jobs Into Items',
 				name: 'splitItems',
 				type: 'boolean',
 				default: true,
 				displayOptions: {
 					show: {
-						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs', 'getCompanySignals'],
+						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs', 'getCompanyJobs'],
 					},
 				},
-				description: 'Whether to emit each job or company as its own n8n item (disable to return the raw JSON envelope)',
+				description: 'Whether to emit each job as its own n8n workflow item (disable to return the raw JSON envelope)',
 			},
 		],
 	};
@@ -248,48 +250,44 @@ export class Jobvetta implements INodeType {
 					}
 					endpoint = `/v1/jobs/${encodeURIComponent(jobId)}`;
 				} else if (operation === 'estimateSalary') {
-					endpoint = '/v1/salaries/estimate';
+					endpoint = '/v1/jobs/salary-estimate';
 					const q = (this.getNodeParameter('q', i) as string).trim();
-					if (!q) {
-						throw new NodeOperationError(this.getNode(), 'Query / Keyword is required for Estimate Salary', { itemIndex: i });
-					}
-					qs.q = q;
-					const country = (this.getNodeParameter('country', i) as string).trim();
 					const location = (this.getNodeParameter('location', i) as string).trim();
-					if (country) qs.country = country.toUpperCase();
+					const days = this.getNodeParameter('days', i) as number;
+					if (q) qs.q = q;
 					if (location) qs.location = location;
+					if (days) qs.days = days;
 				} else {
-					if (operation === 'searchRemoteJobs') endpoint = '/v1/jobs/remote';
-					else if (operation === 'getRecentJobs') endpoint = '/v1/jobs/recent';
-					else if (operation === 'getCompanySignals') endpoint = '/v1/companies/hiring';
+					if (operation === 'searchRemoteJobs') {
+						endpoint = '/v1/jobs/remote';
+					} else if (operation === 'getRecentJobs') {
+						endpoint = '/v1/jobs/recent';
+					} else if (operation === 'getCompanyJobs') {
+						const company = (this.getNodeParameter('company', i) as string).trim();
+						if (!company) {
+							throw new NodeOperationError(this.getNode(), 'Company Name is required', { itemIndex: i });
+						}
+						endpoint = `/v1/companies/${encodeURIComponent(company)}/jobs`;
+					}
 
 					const q = (this.getNodeParameter('q', i) as string).trim();
-					const country = (this.getNodeParameter('country', i) as string).trim();
+					const location = (this.getNodeParameter('location', i) as string).trim();
 					const limit = this.getNodeParameter('limit', i) as number;
+					const offset = this.getNodeParameter('offset', i) as number;
 					if (q) qs.q = q;
-					if (country) qs.country = country.toUpperCase();
+					if (location) qs.location = location;
 					qs.limit = limit;
+					if (offset > 0) qs.offset = offset;
 
-					if (operation === 'searchJobs') {
-						const location = (this.getNodeParameter('location', i) as string).trim();
-						const company = (this.getNodeParameter('company', i) as string).trim();
+					if (operation !== 'getCompanyJobs') {
+						const companyQuery = (this.getNodeParameter('companyQuery', i) as string).trim();
+						if (companyQuery) qs.company_query = companyQuery;
+					}
+					if (operation === 'searchJobs' || operation === 'getCompanyJobs') {
 						const remote = this.getNodeParameter('remote', i) as boolean;
-						const days = this.getNodeParameter('days', i) as number;
-						const offset = this.getNodeParameter('offset', i) as number;
-						if (location) qs.location = location;
-						if (company) qs.company = company;
-						if (remote) qs.remote = 'true';
-						if (days) qs.days = days;
-						if (offset > 0) qs.offset = offset;
-					} else if (operation === 'searchRemoteJobs') {
-						const days = this.getNodeParameter('days', i) as number;
-						const offset = this.getNodeParameter('offset', i) as number;
-						if (days) qs.days = days;
-						if (offset > 0) qs.offset = offset;
-					} else if (operation === 'getRecentJobs') {
-						const offset = this.getNodeParameter('offset', i) as number;
-						if (offset > 0) qs.offset = offset;
-					} else if (operation === 'getCompanySignals') {
+						if (remote) qs.remote = '1';
+					}
+					if (operation !== 'getRecentJobs') {
 						const days = this.getNodeParameter('days', i) as number;
 						if (days) qs.days = days;
 					}
@@ -309,12 +307,11 @@ export class Jobvetta implements INodeType {
 					options,
 				)) as IDataObject;
 
-				const canSplit = ['searchJobs', 'searchRemoteJobs', 'getRecentJobs', 'getCompanySignals'].includes(operation);
+				const canSplit = ['searchJobs', 'searchRemoteJobs', 'getRecentJobs', 'getCompanyJobs'].includes(operation);
 				const splitItems = canSplit ? (this.getNodeParameter('splitItems', i) as boolean) : false;
 
 				if (splitItems) {
-					const listKey = operation === 'getCompanySignals' ? 'companies' : 'jobs';
-					const records = Array.isArray(response[listKey]) ? (response[listKey] as IDataObject[]) : [];
+					const records = Array.isArray(response.jobs) ? (response.jobs as IDataObject[]) : [];
 					for (const record of records) {
 						returnData.push({
 							json: record,
