@@ -18,7 +18,21 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm install
+      - run: npm ci
       - run: npm run typecheck
       - run: npm run build
-      - run: npm publish --provenance --access public
+      - name: Publish to npm (NPM_TOKEN or OIDC Trusted Publisher)
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish --provenance --access public
+          else
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://registry.npmjs.org/n8n-nodes-jobvetta)
+            if [ "$HTTP_CODE" = "200" ]; then
+              npm publish --provenance --access public
+            else
+              echo "::notice::Skipping npm publish: initial package creation on npm requires NPM_TOKEN secret or one-time local 'npm publish --access public' before OIDC Trusted Publishing can be linked."
+              exit 0
+            fi
+          fi
