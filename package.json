@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-jobvetta",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Official n8n community node for the Jobvetta Jobs & Hiring Signals API (6.5M+ live employer career-site jobs across 242 countries).",
   "keywords": [
     "n8n-community-node-package",
@@ -24,7 +24,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && cp nodes/Jobvetta/jobvetta.svg dist/nodes/Jobvetta/jobvetta.svg",
+    "build": "tsc && cp nodes/Jobvetta/jobvetta*.svg dist/nodes/Jobvetta/ && cp credentials/jobvetta*.svg dist/credentials/",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },

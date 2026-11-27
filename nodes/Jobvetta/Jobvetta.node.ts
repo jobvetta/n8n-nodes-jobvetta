@@ -1,21 +1,25 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IHttpRequestOptions,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	IHttpRequestOptions,
+	JsonObject,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 export class Jobvetta implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Jobvetta',
 		name: 'jobvetta',
-		icon: 'file:jobvetta.svg',
+		icon: {
+			light: 'file:jobvetta.svg',
+			dark: 'file:jobvetta.dark.svg',
+		},
 		group: ['transform'],
 		version: 1,
-		subtitle: '={{$parameter["operation"]}}',
+		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Search 6.5M+ live employer career-site jobs, remote roles, company openings, and salary benchmarks across 242 countries',
 		defaults: {
 			name: 'Jobvetta',
@@ -31,49 +35,103 @@ export class Jobvetta implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Operation',
-				name: 'operation',
+				displayName: 'Resource',
+				name: 'resource',
 				type: 'options',
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Search Jobs',
-						value: 'searchJobs',
-						description: 'Search live openings across 238,000+ official employer career sites',
-						action: 'Search live employer jobs',
+						name: 'Company',
+						value: 'company',
 					},
 					{
-						name: 'Search Remote Jobs',
-						value: 'searchRemoteJobs',
-						description: 'Search verified remote-eligible employer roles worldwide',
-						action: 'Search verified remote jobs',
+						name: 'Job',
+						value: 'job',
 					},
 					{
-						name: 'Get Recent Jobs (24h)',
+						name: 'Salary',
+						value: 'salary',
+					},
+				],
+				default: 'job',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['company'],
+					},
+				},
+				options: [
+					{
+						name: 'Get Jobs',
+						value: 'getCompanyJobs',
+						description: 'List active openings at a specific employer',
+						action: 'Get jobs at a company',
+					},
+				],
+				default: 'getCompanyJobs',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['job'],
+					},
+				},
+				options: [
+					{
+						name: 'Get',
+						value: 'getJobDetails',
+						description: 'Retrieve the full description and employer metadata by job ID',
+						action: 'Get a job',
+					},
+					{
+						name: 'Get Recent (24h)',
 						value: 'getRecentJobs',
 						description: 'Fetch jobs posted in the last 24 hours for daily alerts and lead triggers',
-						action: 'Get jobs posted in last 24 hours',
+						action: 'Get recent jobs',
 					},
 					{
-						name: 'Get Company Jobs',
-						value: 'getCompanyJobs',
-						description: 'List active openings at a specific employer (/v1/companies/{company}/jobs)',
-						action: 'List active jobs at a company',
+						name: 'Search',
+						value: 'searchJobs',
+						description: 'Search live openings across 238,000+ official employer career sites',
+						action: 'Search jobs',
 					},
 					{
-						name: 'Estimate Salary',
-						value: 'estimateSalary',
-						description: 'Compute annualized p25, median, and p75 compensation benchmarks (/v1/jobs/salary-estimate)',
-						action: 'Estimate role salary benchmarks',
-					},
-					{
-						name: 'Get Job Details',
-						value: 'getJobDetails',
-						description: 'Retrieve the full description and employer metadata for a job ID (/v1/jobs/{id})',
-						action: 'Get full job details by ID',
+						name: 'Search Remote',
+						value: 'searchRemoteJobs',
+						description: 'Search verified remote-eligible employer roles worldwide',
+						action: 'Search remote jobs',
 					},
 				],
 				default: 'searchJobs',
+			},
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['salary'],
+					},
+				},
+				options: [
+					{
+						name: 'Estimate',
+						value: 'estimateSalary',
+						description: 'Compute annualized p25, median, and p75 compensation benchmarks',
+						action: 'Estimate salary benchmarks',
+					},
+				],
+				default: 'estimateSalary',
 			},
 			{
 				displayName: 'Job ID',
@@ -83,10 +141,11 @@ export class Jobvetta implements INodeType {
 				default: '',
 				displayOptions: {
 					show: {
+						resource: ['job'],
 						operation: ['getJobDetails'],
 					},
 				},
-				description: 'Unique Jobvetta job identifier returned by Search Jobs',
+				description: 'Unique Jobvetta job identifier returned by Search',
 			},
 			{
 				displayName: 'Company Name',
@@ -97,6 +156,7 @@ export class Jobvetta implements INodeType {
 				placeholder: 'e.g. Stripe, Cisco Systems, Databricks',
 				displayOptions: {
 					show: {
+						resource: ['company'],
 						operation: ['getCompanyJobs'],
 					},
 				},
@@ -148,6 +208,7 @@ export class Jobvetta implements INodeType {
 				placeholder: 'e.g. Stripe, Cloudflare',
 				displayOptions: {
 					show: {
+						resource: ['job'],
 						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs'],
 					},
 				},
@@ -189,13 +250,13 @@ export class Jobvetta implements INodeType {
 					minValue: 1,
 					maxValue: 100,
 				},
-				default: 25,
+				default: 50,
 				displayOptions: {
 					show: {
 						operation: ['searchJobs', 'searchRemoteJobs', 'getRecentJobs', 'getCompanyJobs'],
 					},
 				},
-				description: 'Max number of jobs to return per request (1 to 25 on Free, up to 100 on Growth+)',
+				description: 'Max number of results to return',
 			},
 			{
 				displayName: 'Offset',
@@ -235,12 +296,12 @@ export class Jobvetta implements INodeType {
 		const baseURL =
 			credentials.provider === 'rapidapi'
 				? 'https://jobvetta-jobs.p.rapidapi.com'
-				: 'https://api.jobvetta.com';
+				: 'https://api.jobvetta.com/v1';
 
 		for (let i = 0; i < items.length; i++) {
 			try {
 				const operation = this.getNodeParameter('operation', i) as string;
-				let endpoint = '/v1/jobs';
+				let endpoint = '/jobs';
 				const qs: IDataObject = {};
 
 				if (operation === 'getJobDetails') {
@@ -248,9 +309,9 @@ export class Jobvetta implements INodeType {
 					if (!jobId) {
 						throw new NodeOperationError(this.getNode(), 'Job ID is required', { itemIndex: i });
 					}
-					endpoint = `/v1/jobs/${encodeURIComponent(jobId)}`;
+					endpoint = `/jobs/${encodeURIComponent(jobId)}`;
 				} else if (operation === 'estimateSalary') {
-					endpoint = '/v1/jobs/salary-estimate';
+					endpoint = '/jobs/salary-estimate';
 					const q = (this.getNodeParameter('q', i) as string).trim();
 					const location = (this.getNodeParameter('location', i) as string).trim();
 					const days = this.getNodeParameter('days', i) as number;
@@ -259,15 +320,15 @@ export class Jobvetta implements INodeType {
 					if (days) qs.days = days;
 				} else {
 					if (operation === 'searchRemoteJobs') {
-						endpoint = '/v1/jobs/remote';
+						endpoint = '/jobs/remote';
 					} else if (operation === 'getRecentJobs') {
-						endpoint = '/v1/jobs/recent';
+						endpoint = '/jobs/recent';
 					} else if (operation === 'getCompanyJobs') {
 						const company = (this.getNodeParameter('company', i) as string).trim();
 						if (!company) {
 							throw new NodeOperationError(this.getNode(), 'Company Name is required', { itemIndex: i });
 						}
-						endpoint = `/v1/companies/${encodeURIComponent(company)}/jobs`;
+						endpoint = `/companies/${encodeURIComponent(company)}/jobs`;
 					}
 
 					const q = (this.getNodeParameter('q', i) as string).trim();
@@ -332,7 +393,10 @@ export class Jobvetta implements INodeType {
 					});
 					continue;
 				}
-				throw error;
+				if (error instanceof NodeOperationError) {
+					throw new NodeOperationError(this.getNode(), error.message, { itemIndex: i });
+				}
+				throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
 			}
 		}
 

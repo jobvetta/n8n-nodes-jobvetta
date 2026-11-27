@@ -1,5 +1,6 @@
 import type {
 	IAuthenticateGeneric,
+	Icon,
 	ICredentialTestRequest,
 	ICredentialType,
 	INodeProperties,
@@ -8,6 +9,10 @@ import type {
 export class JobvettaApi implements ICredentialType {
 	name = 'jobvettaApi';
 	displayName = 'Jobvetta API';
+	icon: Icon = {
+		light: 'file:jobvetta.svg',
+		dark: 'file:jobvetta.dark.svg',
+	};
 	documentationUrl = 'https://www.jobvetta.com/api';
 
 	properties: INodeProperties[] = [
@@ -52,8 +57,8 @@ export class JobvettaApi implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: '={{$credentials.provider === "rapidapi" ? "https://jobvetta-jobs.p.rapidapi.com" : "https://api.jobvetta.com"}}',
-			url: '/v1/jobs',
+			baseURL: '={{$credentials.provider === "rapidapi" ? "https://jobvetta-jobs.p.rapidapi.com" : "https://api.jobvetta.com/v1"}}',
+			url: '={{$credentials.provider === "rapidapi" ? "/jobs" : "/usage"}}',
 			qs: {
 				limit: 1,
 			},

@@ -21,6 +21,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+      - run: npx --yes @n8n/scan-community-package .
       - name: Publish to npm (NPM_TOKEN or OIDC Trusted Publisher)
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
